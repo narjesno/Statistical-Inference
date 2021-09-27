@@ -1,0 +1,855 @@
+---
+title: "Statistical Inference"
+output:
+  pdf_document: default
+  #html_notebook: default
+---
+<h1> Phase 2 </h1>
+<h2> Dataset : Students Performance </h2>
+<h4> Narjes Noorzad - 810196626 </h4>
+### Question 0
+####Refreshing the memory: 
+
+```{r}
+set.seed(NULL) 
+StudentsPerformance <- read.csv("StudentsPerformance.csv")
+head(StudentsPerformance)
+summary(StudentsPerformance)
+
+```
+### Question 1
+#### Chosen varibales : *sex* and *Mjob*
+
+##### a.
+
+   
+   
+First we have to compute the proportions : 
+```{r warning=FALSE}
+sample.size <- 200
+sp.sample <- StudentsPerformance[sample(nrow(StudentsPerformance), sample.size), ]
+sp.sampled.table <- table(sp.sample[,c("sex", "Fjob")])
+sp.sampled.table
+
+F.phat <- sp.sampled.table["F", "teacher"]/sum(sp.sampled.table["F",])
+F.phat
+
+M.phat <- sp.sampled.table["M", "teacher"]/sum(sp.sampled.table["M",])
+M.phat
+```
+
+```{r}
+SE <- sqrt( M.phat*(1-M.phat)/sum(sp.sampled.table["F",]) + M.phat*(1-M.phat)/sum(sp.sampled.table["M",]) )
+SE
+```
+
+```{r}
+(M.phat - F.phat) + c(-1, 1)*pnorm(0.975, lower.tail = F)*SE
+```
+
+
+##### b.
+```{r}
+
+p.pool <- (sp.sampled.table["F", "teacher"] + sp.sampled.table["M", "teacher"]) / (sum(sp.sampled.table["F",]) + sum(sp.sampled.table["M",]))
+p.pool
+
+SE.pool <- sqrt( p.pool * (1-p.pool)*( 1/ (sum(sp.sampled.table["F",])) + 1/ (sum(sp.sampled.table["M",]))))
+SE.pool
+  
+p_value <- pnorm((M.phat - F.phat) / SE.pool, lower.tail = FALSE)
+
+hypothesis.test <-function(pvalue, alpha = 0.05){
+  if (pvalue < alpha){cat("Due to the fact that p-value (", round(pvalue, 3) , ") is smaller than", alpha, ", we reject the null hypothesis.")}
+  else {cat("Due to the fact that p-value (", round(pvalue, 3) , ") is larger than " ,alpha , ",we fail to reject the null hypothesis.")}
+  }
+
+hypothesis.test(p_value)
+
+```
+
+```{r}
+
+sp.sampled.table
+sp.sampled.table.bind <- cbind(sp.sampled.table[,1] + sp.sampled.table[, 2], sp.sampled.table[, 3:5] )
+sp.sampled.table.bind
+
+chisq.test(sp.sampled.table , rescale.p = T)
+chisq.test(sp.sampled.table.bind , rescale.p = T)
+
+```
+
+### Question 2
+#### Chosen varibales : *romantic*
+
+```{r}
+sample.size <- 15
+romantic.sample <- StudentsPerformance[sample(nrow(StudentsPerformance), sample.size), ]$romantic
+p.hat <- length(which(romantic.sample == 'yes' ))/sample.size
+p.hat
+
+
+simulation <-  data.frame(t(replicate(n = 1000, sample(levels(as.factor(StudentsPerformance$romantic)), size = sample.size, replace = TRUE))))
+
+simulation.success <- apply(simulation, 1, function(x) length(which(x == 'yes')))
+p_value <- length(which(simulation.success >= 8))/1000 
+hypothesis.test(p_value)
+
+hist(simulation.success/sample.size)
+```
+
+
+
+### Question 3
+#### Chosen varibales : *Mjob*
+
+
+##### a.
+```{r}
+
+sample.original <- StudentsPerformance$Mjob 
+round(table(sample.original) / length(StudentsPerformance$Mjob), 4)
+
+sample.size <- 100
+
+sample.unbiased <- sample(StudentsPerformance$Mjob, sample.size, replace = FALSE)
+unbiased.table <- table(sample.unbiased)
+unbiased.table
+
+
+biased.prob <- ifelse(StudentsPerformance$Mjob == "teacher", 0.6, 0.4)
+sample.biased <- sample(StudentsPerformance$Mjob, sample.size, prob = biased.prob)
+biased.table <- table(sample.biased)
+biased.table
+
+
+original_prob <- c(prop.table(table(StudentsPerformance$Mjob)))
+chisq.test(unbiased.table, p = original_prob)
+chisq.test(biased.table, p = original_prob)
+```
+#### Chosen varibales : *Fjob*
+
+
+##### b.
+```{r}
+Mjob.Fjob <- table(sp.sample[,c("Mjob","Fjob")])
+Mjob.Fjob
+chisq.test(Mjob.Fjob)
+
+Mjob.Fjob.bind <- cbind(Mjob.Fjob[,1] + Mjob.Fjob[, 2] + Mjob.Fjob[, 4] + Mjob.Fjob[, 5], Mjob.Fjob[, 3] )
+Mjob.Fjob.bind
+
+chisq.test(Mjob.Fjob.bind,  rescale.p = T)
+```
+### Question 4
+#### Chosen varibales : *G1* , *failure* and *studytime*
+
+
+##### a.
+
+```{r}
+library(ggplot2)
+library("ggpubr")
+library(GGally)
+cor(StudentsPerformance$failures, StudentsPerformance$G1)
+cor(StudentsPerformance$studytime, StudentsPerformance$G1)
+cor(StudentsPerformance$goout, StudentsPerformance$G1)
+
+ggpairs(StudentsPerformance[, c(11, 10, 14)])
+```
+
+##### b.
+###### a. and b.
+```{r}
+#just failure
+lm.G1.failure <- lm(G1 ~ failures, data = StudentsPerformance)
+summary(lm.G1.failure)
+lm.G1.failure
+```
+
+
+```{r}
+#condition
+library(ggplot2)
+library(ggfortify)
+autoplot(lm.G1.failure)+ theme_classic()
+
+```
+
+
+```{r}
+#just studytime
+lm.G1.studytime <- lm(G1 ~ studytime, data = StudentsPerformance)
+summary(lm.G1.studytime)
+lm.G1.studytime
+```
+
+```{r}
+#condition
+library(ggplot2)
+library(ggfortify)
+autoplot(lm.G1.studytime)+ theme_classic()
+```
+
+###### c.
+```{r}
+G1.failures <- ggplot(StudentsPerformance, aes(x = failures)) + geom_point(aes(y = G1), size = 2, colour = "grey") + stat_smooth(aes(x = failures, y = G1, linetype = "Linear Fit"), method = "lm", formula = y ~ x, se = F, color = "black")+ scale_linetype_manual(name = "Fit Type", values = c(2, 2)) + ggtitle("G1 vs. failures")
+
+G1.failures + theme_classic()
+
+G1.studytime <- ggplot(StudentsPerformance, aes(x = studytime)) + geom_point(aes(y = G1), size = 2, colour = "grey") + stat_smooth(aes(x = studytime, y = G1, linetype = "Linear Fit"), method = "lm", formula = y ~ x, se = F, color = "black")+ scale_linetype_manual(name = "Fit Type", values = c(2, 2)) + ggtitle("G1 vs. studytime")
+
+G1.studytime + theme_classic()
+
+```
+
+
+
+##### e.
+```{r}
+
+compute.R.sqr <- function(model){
+  SS.reg <- (anova(model)[[2]])[1] + (anova(model)[[2]])[2]
+  SS.res <- (anova(model)[[2]])[3]
+  R.sqr.f <- SS.reg / (SS.res + SS.reg)
+  return(R.sqr.f)
+}
+
+
+base.model <- lm(G1 ~ sex, data = StudentsPerformance)
+anova(base.model)
+SS.reg <- (anova(base.model)[[2]])[1]
+SS.res <- (anova(base.model)[[2]])[2]
+R.sqr <- SS.reg / (SS.res + SS.reg)
+
+
+#failure vs. studytime : 
+model.s.f <- lm(G1 ~ sex + failures, data = StudentsPerformance)
+anova(model.s.f)
+R.sqr.f <- compute.R.sqr(model.s.f)
+
+model.s.s <- lm(G1 ~ sex + studytime, data = StudentsPerformance)
+anova(model.s.s)
+R.sqr.s <- compute.R.sqr(model.s.s)
+
+R.square <- c(R.sqr, R.sqr.f, R.sqr.s)
+df <- data.frame(R2 = round(R.square, 2))
+df <- t(df)
+colnames(df) <-c ("Base" , " + failures", " + studytime")
+df
+
+#G2 vs. G3
+model.s.2 <- lm(G1 ~ sex + G2, data = StudentsPerformance)
+anova(model.s.2)
+R.sqr.2 <- compute.R.sqr(model.s.2)
+
+model.s.3 <- lm(G1 ~ sex + G3, data = StudentsPerformance)
+anova(model.s.3)
+R.sqr.3 <- compute.R.sqr(model.s.3)
+
+R.square. <- c(R.sqr, R.sqr.2, R.sqr.3)
+df <- data.frame(R2 = round(R.square., 2))
+df <- t(df)
+colnames(df) <-c ("Base" , " + G2", " + G3")
+df
+
+```
+
+##### e.
+###### a.
+```{r}
+require(caTools)
+set.seed(101) 
+
+sample.size <- 100
+sp.sample <- StudentsPerformance[sample(nrow(StudentsPerformance), sample.size), ]
+
+sample <- sample.split(sp.sample$G1, SplitRatio = 9/10)
+G1.train <- subset(sp.sample, sample == TRUE)
+G1.test  <- subset(sp.sample, sample == FALSE)
+```
+
+
+```{r}
+#failues
+lm.G1.failures <- lm(G1 ~ failures, data = G1.train)
+summary(lm.G1.failures)
+p_value <- summary(lm.G1.failures)$coefficients[8]
+hypothesis.test(p_value)
+```
+
+
+```{r}
+#studytime
+lm.G1.studytime <- lm(G1 ~ studytime, data = G1.train)
+summary(lm.G1.studytime)
+p_value <- summary(lm.G1.studytime)$coefficients[8]
+hypothesis.test(p_value)
+```
+
+```{r}
+#G2
+lm.G1.G2 <- lm(G1 ~ G2, data = G1.train)
+summary(lm.G1.G2)
+p_value <- summary(lm.G1.G2)$coefficients[8]
+hypothesis.test(p_value)
+```
+
+
+```{r}
+#G3
+lm.G1.G3 <- lm(G1 ~ G3, data = G1.train)
+summary(lm.G1.G3)
+p_value <- summary(lm.G1.G3)$coefficients[8]
+hypothesis.test(p_value)
+```
+
+###### b.
+```{r}
+
+calculate.CI <- function(model, alpha = 0.05){
+  
+  point.est <- summary(model)$coefficients[2]
+  std.error <- summary(model)$coefficients[4]
+  
+  round(point.est + c(-1, 1) * pnorm(1 - alpha/2) * std.error, 3)
+}
+
+calculate.CI(lm.G1.failures)
+
+calculate.CI(lm.G1.studytime)
+
+calculate.CI(lm.G1.G2)
+
+calculate.CI(lm.G1.G3)
+
+```
+
+###### c.
+```{r}
+predicted.s <-  round(predict(lm.G1.studytime, G1.test, type = "response"),1)
+predicted.f <-  round(predict(lm.G1.failures, G1.test, type = "response"),1)
+predicted.2 <-  round(predict(lm.G1.G2, G1.test, type = "response"),1)
+predicted.3 <-  round(predict(lm.G1.G3, G1.test, type = "response"),1)
+
+
+
+pred.actual <- data.frame(G1.test$G1, predicted.s, predicted.f, predicted.2, predicted.3)
+colnames(pred.actual) <- c("Actual", "Predicted studytime", "Predicted failues", "Predicted G2", "Predicted G3")
+
+```
+###### d.
+```{r}
+# 0.1 * data_range =  error 
+error <- abs(G1.test$G1 - pred.actual)
+error
+
+succes.rate.list <- c()
+for (predictor in 1:length(error)) {
+  error.accepted <- length(which(error[predictor] <= 2))
+  succes.rate <- paste((error.accepted / length(G1.test$G1))*100, "%")
+  succes.rate.list <- c(succes.rate.list, succes.rate) 
+}
+
+
+succes.rate <- data.frame(t(succes.rate.list[2:5]))
+colnames(succes.rate) <- c("Predicted studytime", "Predicted failues", "Predicted G2", "Predicted G3")
+succes.rate
+```
+
+
+```{r}
+# Min-Max Accuracy Calculation
+predictors <- data.frame(predicted.s, predicted.f, predicted.2, predicted.3)
+
+mm.succes.rate.list <- c()
+for (p in 1:length(predictors)) {
+  actuals.preds <- data.frame(cbind(actuals = G1.test$G1, predicteds = predictors[p]))
+  min.max.succes.rate <- paste(round((mean(apply(actuals.preds, 1, min) / apply(actuals.preds, 1, max)))*100, 2), "%")
+  mm.succes.rate.list <- c(mm.succes.rate.list, min.max.succes.rate) 
+}
+
+succes.rate <- data.frame((t(mm.succes.rate.list)))
+colnames(succes.rate) <- c("Predicted studytime", "Predicted failues", "Predicted G2", "Predicted G3")
+succes.rate
+  
+
+```
+
+
+```{r}
+# MAPE Calculation
+
+
+mape.succes.rate.list <- c()
+for (p in 1:length(predictors)) {
+  actuals.preds <- data.frame(cbind(actuals = G1.test$G1, predicteds = predictors[p]))
+  mape.succes.rate <- paste(round((mean(abs((actuals.preds$predicteds - actuals.preds$actuals))/actuals.preds$actuals) )*100, 2), "%")
+  mape.succes.rate.list <- c(mm.succes.rate.list, min.max.succes.rate) 
+}
+
+
+
+succes.rate <- data.frame((t(mape.succes.rate.list)))
+colnames(succes.rate) <- c("Predicted studytime", "Predicted failues", "Predicted G2", "Predicted G3")
+succes.rate
+  
+
+
+```
+
+
+#### extra part 
+```{r}
+library(ggplot2)
+library("ggpubr")
+library(GGally)
+cor(StudentsPerformance$G2, StudentsPerformance$G1)
+cor(StudentsPerformance$G3, StudentsPerformance$G1)
+
+
+ggpairs(StudentsPerformance[, c(15, 16, 14)])
+```
+```{r}
+#G2
+lm.G1.G2 <- lm(G1 ~ G2, data = StudentsPerformance)
+summary(lm.G1.G2)
+lm.G1.G2
+
+library(ggplot2)
+library(ggfortify)
+autoplot(lm.G1.G2)+ theme_classic()
+
+G1.G2 <- ggplot(StudentsPerformance, aes(x = G2)) + geom_point(aes(y = G1), size = 2, colour = "grey") + stat_smooth(aes(x = G2, y = G1, linetype = "Linear Fit"), method = "lm", formula = y ~ x, se = F, color = "black")+ scale_linetype_manual(name = "Fit Type", values = c(2, 2)) + ggtitle("G1 vs. G2")
+
+G1.G2 + theme_classic()
+
+```
+```{r}
+#G2
+lm.G1.G3 <- lm(G1 ~ G3, data = StudentsPerformance)
+summary(lm.G1.G3)
+lm.G1.G3
+
+library(ggplot2)
+library(ggfortify)
+autoplot(lm.G1.G3)+ theme_classic()
+
+G1.G3 <- ggplot(StudentsPerformance, aes(x = G3)) + geom_point(aes(y = G1), size = 2, colour = "grey") + stat_smooth(aes(x = G3, y = G1, linetype = "Linear Fit"), method = "lm", formula = y ~ x, se = F, color = "black")+ scale_linetype_manual(name = "Fit Type", values = c(2, 2)) + ggtitle("G1 vs. G3")
+
+G1.G3 + theme_classic()
+```
+
+### Question 5
+#### Chosen response varibale : *G1* 
+####Chosen explanatory variables :  *G2*,  *goout*, *failures*, *studytime*, *sex* , *age*
+
+
+##### a.
+
+```{r message=FALSE, warning=FALSE}
+
+library(GGally)
+p_ <- GGally::print_if_interactive
+pm <- ggpairs(StudentsPerformance[, c(3, 4, 7, 10, 11, 14, 15)], progress = FALSE) + theme_minimal()
+p_(pm)
+
+pm <- ggpairs(StudentsPerformance[, c(3, 4, 7, 10, 11, 15)], progress = FALSE) + theme_minimal()
+p_(pm)
+
+
+StudentsPerformance$sex <- ifelse(StudentsPerformance$sex == "F", 1, 0)
+library(ggcorrplot)
+ggcorrplot(cor(StudentsPerformance[, c(3, 4, 7, 10, 11, 14, 15)]) , type = "lower", lab = TRUE, outline.color = "white", colors = c("black", "white", "mediumpurple3"))
+  
+  
+```
+
+
+##### b.
+```{r}
+lm.model <- lm(G1 ~ G2 + goout +  failures + studytime + sex + age , data = StudentsPerformance)
+summary(lm.model)
+
+```
+
+```{r}
+plot(lm.model$residuals, pch = 16, col = "mediumpurple3") + abline(lm.model)
+```
+
+
+##### e.
+```{r}
+library(olsrr)
+#forward - p-value
+forward.selection.p <- ols_step_forward_p(lm.model, details = TRUE, prem  = 0.05)
+
+
+#backward - p-value 
+backward.elimination.p <- ols_step_backward_p(lm.model, details = TRUE, prem  = 0.05)
+
+```
+
+```{r}
+#forward - adjusted R-sqrt
+library(rms)
+
+best.pred <- c()
+
+adj.r.square <- function(formula, dataset, k = 1) {
+  n <- length(StudentsPerformance$G1)
+  r.squared <- lrm(formula = formula , data = dataset)$stat["R2"]
+  adjR2 <- 1 - (((n-1)/(n-k-1)) * (1-r.squared))
+}
+
+#step 1
+adj.r.squared.list1 <- c()
+names <- c("G2" , "goout" ,  "failures" , "studytime" , "sex" , "age")
+adj.r.squared.list1 <- c(adj.r.square(G1 ~ G2, StudentsPerformance), 
+                        adj.r.square(G1 ~ goout, StudentsPerformance), 
+                        adj.r.square(G1 ~ failures, StudentsPerformance), 
+                        adj.r.square(G1 ~ studytime, StudentsPerformance),
+                        adj.r.square(G1 ~ sex, StudentsPerformance),
+                        adj.r.square(G1 ~ age, StudentsPerformance))
+
+
+
+max.adj.r.squared <- names[which.max(adj.r.squared.list1)]
+if (max(adj.r.squared.list1, 0) > 0) { best.pred <- c(best.pred, max.adj.r.squared) }
+best.pred
+
+
+#step 2
+names <- c("G2 + goout" ,  "G2 + failures" , "G2 + studytime" , "G2 + sex" , "G2 + age")
+adj.r.squared.list2 <- c(adj.r.square(G1 ~ goout + G2, StudentsPerformance, k = 2), 
+                        adj.r.square(G1 ~ failures + G2, StudentsPerformance, k = 2), 
+                        adj.r.square(G1 ~ studytime + G2, StudentsPerformance, k = 2),
+                        adj.r.square(G1 ~ sex + G2, StudentsPerformance, k = 2),
+                        adj.r.square(G1 ~ age + G2, StudentsPerformance, k = 2))
+
+
+max.adj.r.squared <- names[which.max(adj.r.squared.list2 - max(adj.r.squared.list1))]
+if (max(adj.r.squared.list2 - max(adj.r.squared.list1)) > 0) { best.pred <- c(best.pred, max.adj.r.squared) }
+best.pred
+
+#step 3
+names <- c("G2 + age + goout" ,  "G2 + age +  failures" , "G2 + age + studytime" , "G2 + age + sex" )
+adj.r.squared.list3 <- c(adj.r.square(G1 ~ goout + G2 + age , StudentsPerformance, k = 3), 
+                        adj.r.square(G1 ~ failures + G2 + age , StudentsPerformance, k = 3), 
+                        adj.r.square(G1 ~ studytime + G2 + age , StudentsPerformance, k = 3),
+                        adj.r.square(G1 ~ sex + G2+ age  , StudentsPerformance, k = 3))
+
+max.adj.r.squared <- names[which.max(adj.r.squared.list3 - max(adj.r.squared.list2))]
+
+if (max(adj.r.squared.list3 - max(adj.r.squared.list2)) > 0) { best.pred <- c(best.pred, max.adj.r.squared) }
+best.pred
+
+
+#step 4
+names <- c("G2 + age +  failures + goout" ,  "G2 + age +  failures + studytime" , "G2 + age + failures + sex" )
+adj.r.squared.list4 <- c(adj.r.square(G1 ~ goout + G2 + age +  failures , StudentsPerformance, k = 4), 
+                        adj.r.square(G1 ~ studytime + G2 + age +  failures , StudentsPerformance, k = 4),
+                        adj.r.square(G1 ~ sex + G2 + age +  failures , StudentsPerformance, k = 4))
+
+adj.r.squared.list4
+max.adj.r.squared <- names[which.max(adj.r.squared.list4 - max(adj.r.squared.list4))]
+adj.r.squared.list4 - max(adj.r.squared.list3)
+
+if (max(adj.r.squared.list3 - max(adj.r.squared.list2)) > 0) { best.pred <- c(best.pred, max.adj.r.squared) }
+best.pred
+
+
+all.adj.r.squared <- c(max(adj.r.squared.list1), max(adj.r.squared.list2), max(adj.r.squared.list3), max(adj.r.squared.list4))
+
+model <- data.frame(best.pred, all.adj.r.squared)
+model
+
+
+```
+```{r}
+#backward - adjusted R-sqrt
+library(rms)
+
+fullmodel.adj.r.sqr <- adj.r.square(G1 ~ G2 + goout +  failures + studytime + sex + age,StudentsPerformance ,k = 6)
+best.pred <- c()
+
+
+#step 1
+adj.r.squared.list1 <- c()
+names <- c("G2 + goout +  failures + studytime + sex" , "G2 + goout +  failures + studytime + age" ,  
+           "G2 + goout +  failures + sex + age" , "G2 + goout + studytime + sex + age" , 
+           "G2 +  failures + studytime + sex + age" , "goout +  failures + studytime + sex + age")
+adj.r.squared.list1 <- c(adj.r.square(G1 ~ G2 + goout +  failures + studytime + sex, StudentsPerformance, k = 5), 
+                        adj.r.square(G1 ~ G2 + goout +  failures + studytime + age, StudentsPerformance, k = 5), 
+                        adj.r.square(G1 ~ G2 + goout +  failures + sex + age, StudentsPerformance, k = 5), 
+                        adj.r.square(G1 ~ G2 + goout + studytime + sex + age, StudentsPerformance, k = 5),
+                        adj.r.square(G1 ~ G2 +  failures + studytime + sex + age, StudentsPerformance, k = 5),
+                        adj.r.square(G1 ~ goout +  failures + studytime + sex + age, StudentsPerformance, k = 5))
+
+
+
+max.adj.r.squared <- names[which.max(adj.r.squared.list1 - fullmodel.adj.r.sqr)]
+if ( (max(adj.r.squared.list1) - fullmodel.adj.r.sqr) > 0) { best.pred <- c(best.pred, max.adj.r.squared) }
+best.pred
+
+
+#step 2
+adj.r.squared.list2 <- c()
+names <- c("G2 + failures + studytime + sex" , "G2 +  failures + studytime + age" ,  
+           "G2 + failures + sex + age" , "G2 + studytime + sex + age",
+           "failures + studytime + sex + age")
+adj.r.squared.list2 <- c(adj.r.square(G1 ~ G2 + failures + studytime + sex, StudentsPerformance, k = 4), 
+                        adj.r.square(G1 ~ G2 + failures + studytime + age, StudentsPerformance, k = 4), 
+                        adj.r.square(G1 ~ G2 + failures + sex + age, StudentsPerformance, k = 4), 
+                        adj.r.square(G1 ~ G2 + studytime + sex + age, StudentsPerformance, k = 4),
+                        adj.r.square(G1 ~ failures + studytime + sex + age, StudentsPerformance, k = 4))
+
+
+
+max.adj.r.squared <- names[which.max(adj.r.squared.list2 - max(adj.r.squared.list1))]
+if ((max(adj.r.squared.list2) - max(adj.r.squared.list1)) > 0) { best.pred <- c(best.pred, max.adj.r.squared) }
+best.pred
+
+
+#step 3
+adj.r.squared.list3 <- c()
+names <- c("G2 + failures + studytime" , "G2 + failures + age" , 
+           "G2 + studytime + age", "failures + studytime + age")
+adj.r.squared.list3 <- c(adj.r.square(G1 ~ G2 + failures + studytime, StudentsPerformance, k = 3), 
+                        adj.r.square(G1 ~ G2 + failures + age, StudentsPerformance, k = 3), 
+                        adj.r.square(G1 ~ G2 + studytime + age, StudentsPerformance, k = 3),
+                        adj.r.square(G1 ~ failures + studytime + age, StudentsPerformance, k = 3))
+
+
+
+max.adj.r.squared <- names[which.max(adj.r.squared.list3 - max(adj.r.squared.list2))]
+if ((max(adj.r.squared.list3) - max(adj.r.squared.list2)) > 0) { best.pred <- c(best.pred, max.adj.r.squared) }
+best.pred
+
+
+#step 4
+adj.r.squared.list4 <- c()
+names <- c("G2 + failures" , "G2 + age", "failures + age")
+adj.r.squared.list4 <- c(adj.r.square(G1 ~ G2 + failures, StudentsPerformance, k = 2), 
+                        adj.r.square(G1 ~ G2 + age, StudentsPerformance, k = 2),
+                        adj.r.square(G1 ~ failures + age, StudentsPerformance, k = 2))
+
+
+
+max.adj.r.squared <- names[which.max(adj.r.squared.list4 - max(adj.r.squared.list3))]
+if ((max(adj.r.squared.list4) - max(adj.r.squared.list3)) > 0) { best.pred <- c(best.pred, max.adj.r.squared) }
+best.pred
+
+
+all.adj.r.squared <- c(max(adj.r.squared.list1), max(adj.r.squared.list2), max(adj.r.squared.list3))
+
+model <- data.frame(best.pred, all.adj.r.squared)
+model
+
+```
+
+
+```{r}
+final.model <- lm(G1 ~ G2 + failures + age , data = StudentsPerformance)
+summary(final.model)
+```
+
+##### f.
+```{r}
+#linearity
+data <- data.frame(G2 = StudentsPerformance$G2, residuals = final.model$residuals)
+ggplot(data = data,aes(G2, residuals)) + geom_point(color = "mediumpurple3", alpha = 0.5) + stat_smooth(method = lm, se= F, color = "black") + theme_classic()
+
+data <- data.frame(failures = StudentsPerformance$failures, residuals = final.model$residuals)
+ggplot(data = data,aes(failures, residuals)) + geom_point(color = "mediumpurple3", alpha = 0.5) + stat_smooth(method = lm, se= F, color = "black") + theme_classic()
+
+data <- data.frame(age = StudentsPerformance$age, residuals = final.model$residuals)
+ggplot(data = data,aes(age, residuals)) + geom_point(color = "mediumpurple3", alpha = 0.5) + geom_hline( yintercept  = 0, size = 1) + theme_classic()
+
+#nearly normal
+ggplot(final.model, aes(sample = final.model$residuals)) + stat_qq(col = "mediumpurple3", alpha = 0.5) + stat_qq_line() + theme_classic()
+
+ggplot(data = final.model,aes(final.model$residuals)) + geom_histogram(bins = 20, col = "mediumpurple2", fill="mediumpurple3", alpha = 0.5) + theme_classic()
+
+#cons. var
+ks.test(unique(final.model$residuals), "pnorm", mean=0, sd=1)
+ggplot(data = final.model,aes(final.model$fitted, final.model$residuals)) + geom_point(color = "mediumpurple3", alpha = 0.5) + stat_smooth(method = lm, se= F, color = "black") + theme_classic()
+
+```
+
+
+
+```{r}
+library(ggplot2)
+library(ggfortify)
+autoplot(final.model)+ theme_classic()
+```
+
+##### g.
+```{r}
+library(caret)
+model <- trainControl(method = "cv", number = 5)
+fullmodel.cv <- train(G1 ~ G2 + goout +  failures + studytime + sex + age, data = StudentsPerformance, trControl = model, method = "lm") 
+
+bestmodel.cv <- train(G1 ~ G2 + failures + age, data = StudentsPerformance, trControl = model, method = "lm") 
+
+
+fullmodel.cv
+bestmodel.cv
+
+
+fullmodel.cv$finalModel
+bestmodel.cv$finalModel
+
+allfolds <- bestmodel.cv$resample
+```
+
+### Question 6
+
+```{r}
+StudentsPerformance$catG3 <- ifelse(StudentsPerformance$G3 < 10, 0, 1)
+
+sample <- sample.split(StudentsPerformance$catG3, SplitRatio = 3/4)
+train <- subset(StudentsPerformance, sample == TRUE)
+test  <- subset(StudentsPerformance, sample == FALSE)
+
+
+```
+
+
+#### Chosen response varibale : *catG3* 
+####Chosen explanatory variables :  *failures*,  *studytime*, *G2* and *sex*
+
+
+##### a.
+
+```{r}
+model.gml <- glm(catG3 ~ failures + studytime + G2 + sex , family = binomial(link='logit'),  data = train)
+
+summary(model.gml)
+```
+
+##### b.
+```{r}
+
+female.prob <- seq(0, 1.01, 0.01)
+OR.ratio = abs(summary(model.gml)$coefficients[3])
+
+pred.y <- function(x) {
+  return ((OR.ratio*x/(1-x)) / (1 + (OR.ratio*x/(1-x))))
+}
+male.prob <- sapply(female.prob, pred.y)
+plot(male.prob, female.prob, type = "l", col = "mediumpurple3", lwd = 1.3) + abline(a=0, b=1)
+
+
+```
+
+##### c.
+```{r message=FALSE, warning=FALSE}
+library(pROC)
+require(ROCR)
+
+pred <-  predict(model.gml, train , type="response")
+roc(catG3 ~ pred, data = train, plot = TRUE, print.auc = TRUE, smooth = TRUE)
+
+
+pred.t <-  predict(model.gml, test , type="response")
+roc(catG3 ~ pred.t, data = test, plot = TRUE, print.auc = TRUE, smooth = TRUE)
+
+
+```
+
+##### e.
+```{r}
+library(rcompanion)
+better.model.gml <- glm(catG3 ~ failures + G2 , family = binomial(link='logit'),  data = StudentsPerformance)
+summary(better.model.gml)
+
+compareGLM(model.gml, better.model.gml)
+
+```
+
+##### f.
+
+
+```{r}
+library(caret)
+
+
+confusion.matrix <- function(threshold){
+  prediction.probability <- predict(better.model.gml, newdata = test, type = "response")
+  pos.neg <- ifelse(prediction.probability > threshold, "1", "0")
+  p.class <- factor(pos.neg, levels = c("0", "1"))
+  cm <- confusionMatrix(p.class, as.factor(test$catG3))
+  return(cm)}
+
+confusion.matrix(0.5)
+
+
+threshold <- seq(0, 1, by = 0.1)
+utility.list <- c()
+for (i in 1:length(threshold)){
+  
+   cm <- confusion.matrix(threshold[i])
+  
+  TP <- cm$table[1]
+  FP <- cm$table[2]
+  FN <- cm$table[3]
+  TN <- cm$table[4]
+  
+  utility <- TP + TN - 80*FP - 10*FN
+  utility.list <- c(utility.list, utility)
+  
+}
+
+plot(threshold, utility.list, type = "o", col = "mediumpurple3", lwd = 1.3) + abline(v = threshold[which.max(utility.list)], col="mediumpurple4", lwd = 2, lty=2) 
+
+
+
+
+```
+
+### Question 7
+```{r}
+
+G.sum <- StudentsPerformance$G1 + StudentsPerformance$G2 + StudentsPerformance$G3
+StudentsPerformance$Gsum <- ifelse(G.sum < 25, 1, 0)
+
+
+sample <- sample.split(StudentsPerformance$Gsum, SplitRatio = 3/4)
+train <- subset(StudentsPerformance, sample == TRUE)
+test  <- subset(StudentsPerformance, sample == FALSE)
+
+
+
+model.gml <- glm(Gsum ~ school + age + Fjob + Mjob + internet + romantic + health  +failures +goout + studytime + absences + sex , family = binomial,  data = train)
+
+summary(model.gml)
+
+```
+
+
+```{r}
+
+p.values <- coef(summary(model.gml))[,4]
+
+p_value <- ifelse(p.values < 0.05, 1, 0)
+significant.pvalue <- data.frame(p_value)
+
+
+```
+
+
+```{r}
+
+prediction.probability <- predict(model.gml, newdata = test, type = "response")
+pos.neg <- ifelse(prediction.probability > 0.5, "0", "1")
+p.class <- factor(pos.neg, levels = c("0", "1"))
+cm <- confusionMatrix(p.class, as.factor(test$catG3))
+
+cm
+
+```
+
+
+
